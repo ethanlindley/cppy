@@ -1,40 +1,33 @@
-import logging, socket
-from twisted.internet.protocol import DatagramProtocol
-from twisted.internet import reactor
+import sys
 from server.lib.PacketHandler import PacketHandler
+from twisted.internet import reactor, protocol
+from logbook import Logger, StreamHandler
 
-log = logging.getLogger(__name__)
+StreamHandler(sys.stdout).push_application()
+log = Logger(__name__)
 
 
-class LoginProtocol(DatagramProtocol):
-    def __init__(self, users=None):
-        self.users = users
+class LoginProtocol(protocol.Protocol):
+    def __init__(self):
+        self.clients = []
 
     def connectionMade(self):
-        # let's keep track and increment the number of users 
-        # currently connected to the server
-        log.info("user connected")
-        self.users = self.users + 1
+        client = self.transport.getPeer()
+        if client in self.clients:
+            log.error("client {} is already connected".format(client))
+        else:
+            log.warning("client connected from {}".format(client))
+            self.clients.append(client)
     
     def connectionLost(self, reason):
-        # keeping track of users
-        log.info("user disconnected with reason {}".format(reason))
-        self.users = self.users - 1
+        client = self.transport.getPeer()
+        if client not in self.clients:
+            log.error("client {} does not exist".format(client))
+        else:
+            log.warning("client disconnected with reason {}".format(reason))
+            self.clients.remove(client)
 
-    def datagramReceived(self, datagram, address):
-        log.debug("datagram received from {}".format(repr(address)))
+    def dataReceived(self, data):
         ph = PacketHandler()
-        ph.handleReceivedData(datagram, address)
-
-
-sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-# set the port to non-blocking
-sock.setblocking(False)
-sock.bind(('0.0.0.0', 6112))
-
-# let's pass the port file descriptor to the reactor
-port = reactor.adoptDatagramPort(sock.fileno(), socket.AF_INET, LoginProtocol())
-
-sock.close()
-
-reactor.run()
+        clientData = ph.handleReceivedData(data)
+        #self.transport.write(clientData)

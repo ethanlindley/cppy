@@ -1,10 +1,11 @@
-from twisted.internet.protocol import Protocol
+from twisted.internet.protocol import DatagramProtocol
+from twisted.internet import reactor
 from server.lib.PacketHandler import PacketHandler
 import logging
 
 
-class LoginProtocol(Protocol):
-    def __init__(self, users):
+class LoginProtocol(DatagramProtocol):
+    def __init__(self, users=None):
         self.logger = logging.getLogger(type(self).__name__)
         self.users = users
 
@@ -14,11 +15,15 @@ class LoginProtocol(Protocol):
         self.logger.info("user connected")
         self.users = self.users + 1
     
-    def connectionLost(self):
+    def connectionLost(self, reason):
         # keeping track of users
-        self.logger.info("user disconnected")
+        self.logger.info("user disconnected with reason {}".format(reason))
         self.users = self.users - 1
 
-    def dataReceived(self, data):
+    def datagramReceived(self, datagram, address):
         ph = PacketHandler()
-        ph.handleReceivedData(self, data)
+        ph.handleReceivedData(datagram, address)
+
+
+reactor.listenMulticast(6112, LoginProtocol(), listenMultiple=True)
+reactor.run()

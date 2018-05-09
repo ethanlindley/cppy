@@ -1,5 +1,5 @@
-from twisted.internet.protocol import DatagramProtocol
 import logging
+from twisted.internet.protocol import DatagramProtocol
 
 
 class PacketHandler(DatagramProtocol):

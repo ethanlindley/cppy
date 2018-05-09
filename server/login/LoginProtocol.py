@@ -1,7 +1,7 @@
+import logging, socket
 from twisted.internet.protocol import DatagramProtocol
 from twisted.internet import reactor
 from server.lib.PacketHandler import PacketHandler
-import logging
 
 
 class LoginProtocol(DatagramProtocol):
@@ -25,5 +25,14 @@ class LoginProtocol(DatagramProtocol):
         ph.handleReceivedData(datagram, address)
 
 
-reactor.listenMulticast(6112, LoginProtocol(), listenMultiple=True)
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+# set the port to non-blocking
+sock.setblocking(False)
+sock.bind(('127.0.0.1', 6112))
+
+# let's pass the port file descriptor to the reactor
+port = reactor.adoptDatagramPort(sock.fileno(), socket.AF_INET, LoginProtocol())
+
+sock.close()
+
 reactor.run()
